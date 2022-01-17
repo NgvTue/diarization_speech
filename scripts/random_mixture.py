@@ -16,13 +16,13 @@ parser.add_argument('data_dir',
 parser.add_argument('--n_mixtures', type=int, default=10,
                     help='number of mixture recordings')
 
-parser.add_argument('--n_speakers', type=int, default=4,
+parser.add_argument('--n_speakers', type=int, default=5,
                     help='number of speakers in a mixture')
 
 parser.add_argument('--min_utts', type=int, default=1,
                     help='minimum number of uttenraces per speaker')
 
-parser.add_argument('--max_utts', type=int, default=2,
+parser.add_argument('--max_utts', type=int, default=3,
                     help='maximum number of utterances per speaker')
 
 
@@ -179,6 +179,7 @@ for it in range(args.n_mixtures):
     for i in range(1,len(mixture['speakers'])):
         if np.random.random() <= args.overlap_prob: # overlap
             d_overlap = np.random.exponential(args.overlap_scale, size=1)[0]
+            d_overlap = max(d_overlap, 1.)
             mixture['distance'].append(-1 * d_overlap) 
         else: # no overlap 
             d_sil = np.random.exponential(args.sil_scale_with_two_spk, size=1)[0]
@@ -190,6 +191,7 @@ for it in range(args.n_mixtures):
     # mixtures.append(mixture_to_time_format(mixture))
     # break
     print(recid, json.dumps(mixture_to_time_format(mixture)))
+    # break
     # mixtures
 
         
