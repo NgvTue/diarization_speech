@@ -16,6 +16,7 @@
 chạy file python3 random_mixture.py -h xem các thông số 
 
 Trong đó:
+
 1. n_mixture: Số file mixture từ bộ dữ liệu mà mình muốn tạo ra.
 
 2. n_speakers: Số speaker tối đa trong 1 file mixture được tạo. 
