@@ -40,3 +40,6 @@ for i in tqdm(wav_scp):
     a=json.loads(a)
     data.append(a)
 data.to_csv("db_kaldi.csv",index=False)
+
+import pandas as pd 
+import json 

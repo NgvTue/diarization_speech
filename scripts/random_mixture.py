@@ -117,7 +117,7 @@ def mixture_to_time_format(mixture):
                 d = [{
                     'utt':utt_overlaps[k],
                     "start":start_overlap,
-                    "end":end_overlap,
+                    "end":start ,
                 } for k in range(len(utt_overlaps))
                 ]
                 flatten_mixture_final.extend(d)
@@ -136,6 +136,7 @@ for it in range(args.n_mixtures):
     mixture={"speakers":[], "get_utt_overlap":[]}
     for speaker in speakers:
         n_utts = np.random.randint(args.min_utts, args.max_utts + 1)
+        n_utts= min(n_utts, len(spk2utt))
         cycle_utts = itertools.cycle(spk2utt[speaker])
         roll = np.random.randint(0, len(spk2utt[speaker]))
         for i in range(roll):
@@ -143,7 +144,7 @@ for it in range(args.n_mixtures):
         utts = [next(cycle_utts) for i in range(n_utts)]
         intervals = np.random.exponential(args.sil_scale, size=n_utts)
         
-        intervals = np.array([max(i,0.75) for i in intervals])
+        # intervals = np.array([max(i,0.75) for i in intervals])
         intervals[0]  = 0
         # intervals = np.max(intervals, 0.75) # maximum vad >= 0.75
 
