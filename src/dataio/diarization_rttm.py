@@ -1,7 +1,7 @@
 from chunk import Chunk
 import numpy as np
 import numpy as np
-from pytorch_lightning import logging
+import logging
 from torch import dtype
 from src.dataio.base import DataSet
 
@@ -154,13 +154,18 @@ class DiarizationRTTM(DataSet):
         fpath_wav = self.pattern_rttm.format(record_id)
         wav,sr = sf.read(fpath_wav,start=int(chunk['start'] * self.sample_rate), frames=int(self.sample_rate * self.frame_per_sample / 1000), fill_value=0)
         speaker = np.zeros((int(self.frame_per_sample / self.frame_shift), self.max_speaker))
-        for idx,ordered_speaker in enumerate(chunk['segment_speaker']):
-            if idx >= self.max_speaker:
+        spk_dict ={}
+        for i,ordered_speaker in enumerate(chunk['segment_speaker']):
+            speaker_id = ordered_speaker['speaker_id']
+            if speaker_id not in spk_dict:
+                spk_dict[speaker_id] = len(spk_dict)
+            idx_sp = spk_dict[speaker_id]
+            if idx_sp >= self.max_speaker:
                 logging.warning(f"record_id {record_id} has chunk with more than {self.max_speaker} overlap")
                 break
             start = int(ordered_speaker['start'] * 1000 / self.frame_shift)
             end = int(ordered_speaker['end'] * 1000 / self.frame_shift)
-            speaker[start:end,idx] = 1
+            speaker[start:end,idx_sp] = 1
         return wav, speaker
 
 
