@@ -45,4 +45,4 @@ class DataSet(ABC):
     def to_tensor_dataset(self):
         if self.signature is None:
             raise ValueError(f"signature in {self.name} is not define")
-        return tf.data.from_generator(self, output_signature = self.signature)
+        return tf.data.Dataset.from_generator(self, output_signature = self.signature)

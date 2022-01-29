@@ -31,16 +31,15 @@ class DiarizationRTTM(DataSet):
         shuffle=True, 
 
     ):
-        signature = {
+        signature = (
             (
                 tf.TensorSpec(shape=(int(frame_per_sample * sample_rate / 1000),), dtype=tf.float32 ), # audios
-
 
             ),
             (
                 tf.TensorSpec(shape=(int(frame_per_sample / frame_shift),), dtype=tf.int32 ), # labels
             )
-        } 
+        )
         super().__init__(signature=signature, shuffle=shuffle)
         self.max_speaker = max_speaker
         self.sample_rate =sample_rate
@@ -102,10 +101,10 @@ class DiarizationRTTM(DataSet):
         
         print("generate chunk per record_id")
         max_speaker_persample=0
-        for record_id in tqdm(self.record_db):
+        for record_id in tqdm(self.record_db.keys()):
             total_duration = self.record_db[record_id]['length']
             st = 0
-            self.record_db['chunks']=[]
+            # self.record_db['chunks']=[]
             chunk=[]
             while st < total_duration:
                 end = st + (frame_per_sample/1000)
@@ -116,22 +115,23 @@ class DiarizationRTTM(DataSet):
                     'segment_speaker':[]  
                 }
                 segment_filter = self.record_pandas[(self.record_pandas.record_id == record_id) & (self.record_pandas['start'] <=end) & (self.record_pandas['end'] >= st)]
-                segment_filter['start'] =segment_filter['start'].apply(lambda x:min(0,x-st)) 
-                segment_filter['end'] = segment_filter['end'] - st 
+                segment_filter = segment_filter.copy()
+                segment_filter['start'] =segment_filter['start'].apply(lambda x:max(0,x-st)) 
+                segment_filter['end'] = segment_filter['end'].apply(lambda x:x-st) 
                 max_speaker_persample=max(max_speaker_persample, segment_filter['speaker_id'].unique().shape[0])
                 for row in range(len(segment_filter)):
                     chunk_infor['segment_speaker'].append(
                         {
                             'start':segment_filter.iloc[row]['start'],
                             'end':segment_filter.iloc[row]['end'],
-                            'speaker_id':segment_filter.iloc['row']['speaker_id']
+                            'speaker_id':segment_filter.iloc[row]['speaker_id']
                         }
                     )
                 chunk.append(chunk_infor)
 
                 st = end 
             
-            self.record_db['chunks']=chunk
+            self.record_db[record_id]['chunks']=chunk
         
         print("Max speaker overlap : ", max_speaker_persample)
         self.max_speaker_overlap = max_speaker_persample
@@ -158,8 +158,8 @@ class DiarizationRTTM(DataSet):
             if idx >= self.max_speaker:
                 logging.warning(f"record_id {record_id} has chunk with more than {self.max_speaker} overlap")
                 break
-            start = int(ordered_speaker['start'] * self.sample_rate)
-            end = int(ordered_speaker['end'] * self.sample_rate)
+            start = int(ordered_speaker['start'] * 1000 / self.frame_shift)
+            end = int(ordered_speaker['end'] * 1000 / self.frame_shift)
             speaker[start:end,idx] = 1
         return wav, speaker
 
