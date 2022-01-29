@@ -91,7 +91,7 @@ def mixture_to_time_format(mixture):
         ov=False
         if distance <=0: # overlap
             distance = -1*distance
-            distance = min(distance, pos) 
+            distance = min(distance, pos)
             start_real = pos - distance
             ov=True
             start_overlap = start_real
@@ -101,8 +101,6 @@ def mixture_to_time_format(mixture):
         for k in range(len(flatten_mixture[i]['data'])):
             flatten_mixture[i]['data'][k]['start'] += start_real
             flatten_mixture[i]['data'][k]['end'] += start_real
-        
-        
         flatten_mixture_final.extend([k for k in flatten_mixture[i]['data']])
         pos = flatten_mixture_final[-1]['end']
         if ov ==True:
@@ -110,21 +108,21 @@ def mixture_to_time_format(mixture):
             if num_overlap >= 1:
                 utt_overlaps = [a for a in mixture['get_utt_overlap']]
                 utt_overlaps.pop(i)
-                utt_overlaps.pop(i-1) 
+                utt_overlaps.pop(i-1)
                 np.random.shuffle(utt_overlaps)
                 utt_overlaps = utt_overlaps[:num_overlap]
                 utt_overlaps = [(k[0], k[1], min(k[2],k[1] + distance))  for k in utt_overlaps]
                 d = [{
                     'utt':utt_overlaps[k],
                     "start":start_overlap,
-                    "end":start ,
+                    "end":start_overlap+utt_overlaps[k][2]-utt_overlaps[k][1],
                 } for k in range(len(utt_overlaps))
                 ]
                 flatten_mixture_final.extend(d)
 
-        
+
     return flatten_mixture_final
-        
+
 mixtures = []
 for it in range(args.n_mixtures):
     recid = 'mix_{:07d}'.format(it + 1)
@@ -136,15 +134,15 @@ for it in range(args.n_mixtures):
     mixture={"speakers":[], "get_utt_overlap":[]}
     for speaker in speakers:
         n_utts = np.random.randint(args.min_utts, args.max_utts + 1)
-        n_utts= min(n_utts, len(spk2utt))
+        n_utts=min(n_utts,len(spk2utt[speaker]))
         cycle_utts = itertools.cycle(spk2utt[speaker])
         roll = np.random.randint(0, len(spk2utt[speaker]))
         for i in range(roll):
             next(cycle_utts)
         utts = [next(cycle_utts) for i in range(n_utts)]
         intervals = np.random.exponential(args.sil_scale, size=n_utts)
-        
-        # intervals = np.array([max(i,0.75) for i in intervals])
+
+        intervals = np.array([max(i,0.75) for i in intervals])
         intervals[0]  = 0
         # intervals = np.max(intervals, 0.75) # maximum vad >= 0.75
 
@@ -169,24 +167,24 @@ for it in range(args.n_mixtures):
                 })
         utts_overlap = next(cycle_utts)
         utts_overlap = segments[utts_overlap]
-        
+
         utts_overlap = (wavs[utts_overlap[0]], utts_overlap[1], utts_overlap[2])
         mixture['get_utt_overlap'].append(utts_overlap)
-    
+
     # handle overlap spk
-    
+
     mixture['distance'] = []
-    
+
     for i in range(1,len(mixture['speakers'])):
         if np.random.random() <= args.overlap_prob: # overlap
             d_overlap = np.random.exponential(args.overlap_scale, size=1)[0]
             d_overlap = max(d_overlap, 1.)
-            mixture['distance'].append(-1 * d_overlap) 
+            mixture['distance'].append(-1 * d_overlap)
         else: # no overlap 
             d_sil = np.random.exponential(args.sil_scale_with_two_spk, size=1)[0]
             mixture['distance'].append(d_sil)
 
-    
+
     # print(mixture)
     # print("-"*100)
     # mixtures.append(mixture_to_time_format(mixture))
@@ -194,17 +192,3 @@ for it in range(args.n_mixtures):
     print(recid, json.dumps(mixture_to_time_format(mixture)))
     # break
     # mixtures
-
-        
-
-
-
-
-    
-
-
-
-
-# for it in range(args.n_mixtures):
-    
-#     print(recid, json.dumps(mixture))
