@@ -2,7 +2,8 @@ from chunk import Chunk
 import numpy as np
 import numpy as np
 import logging
-from torch import dtype
+
+# from torch import dtype
 from src.dataio.base import DataSet
 
 from typing import List, Optional, Callable
@@ -23,7 +24,7 @@ class DiarizationRTTM(DataSet):
         self,
         path_rttm: str = None,
         pattern_rttm: str="{record_id}.wav",
-        max_speaker : int =  4,
+        max_speaker : int =  5,
         frame_per_sample: int = 1000* 15,
         sample_rate: int = 16000,
         frame_length : int = 25,
@@ -32,13 +33,11 @@ class DiarizationRTTM(DataSet):
 
     ):
         signature = (
-            (
-                tf.TensorSpec(shape=(int(frame_per_sample * sample_rate / 1000),), dtype=tf.float32 ), # audios
-
-            ),
-            (
-                tf.TensorSpec(shape=(int(frame_per_sample / frame_shift),), dtype=tf.int32 ), # labels
-            )
+            
+            tf.TensorSpec(shape=(int(frame_per_sample * sample_rate / 1000),), dtype=tf.float32 ), # audios
+            
+            tf.TensorSpec(shape=(int(frame_per_sample / frame_shift), max_speaker), dtype=tf.int32 ), # labels
+            
         )
         super().__init__(signature=signature, shuffle=shuffle)
         self.max_speaker = max_speaker
@@ -51,7 +50,7 @@ class DiarizationRTTM(DataSet):
 
         record_db={}
         record_pandas = []
-        with open(self.pattern_rttm,"r") as f:
+        with open(self.path_rttm,"r") as f:
             for line in f:
                 # SPEAKER record_id 1 start duration <NA> <NA> speaker_id <NA> <NA>
                 line_split = line.split()
@@ -93,7 +92,7 @@ class DiarizationRTTM(DataSet):
         
         self.record_pandas['length']=self.record_pandas.record_id.apply(lambda x:self.record_db[x]['length'])
         
-        length_assurance = self.record_pandas['start'] + self.record_pandas['duration'] <= self.record_pandas['length'] 
+        length_assurance = self.record_pandas['start'] + self.record_pandas['duration'] <= self.record_pandas['length'] + 0.1 
         self.record_pandas['end'] = self.record_pandas['start'] + self.record_pandas['duration']
         if length_assurance.sum() != self.record_pandas.shape[0]:
             print("some segment rttm has length greater than length of record_id")
@@ -134,6 +133,8 @@ class DiarizationRTTM(DataSet):
             self.record_db[record_id]['chunks']=chunk
         
         print("Max speaker overlap : ", max_speaker_persample)
+        if max_speaker_persample != self.max_speaker:
+            logging.warning(f"max_speaker = {self.max_speaker}\nDataset has chunks with total_speaker = {max_speaker_persample}")
         self.max_speaker_overlap = max_speaker_persample
         self.idxs = list(self.record_db.keys())
     def __str__(self) -> str:
@@ -142,7 +143,8 @@ class DiarizationRTTM(DataSet):
             "number segment speaker": len(self.record_pandas),
             "max speaker overlap":self.max_speaker_overlap,
             "total_chunks":sum([len(self.record_db[i]['chunks']) for i in self.record_db]),
-            "mean lenght speaker segment": self.record_pandas['duration'].mean()
+            "mean lenght speaker segment": self.record_pandas['duration'].mean(),
+            "mean length of record": self.record_pandas.groupby("record_id").first()['length'].mean()
         })
     def __len__(self):return len(self.record_db)
     def __getitem__(self, idx):
@@ -153,7 +155,9 @@ class DiarizationRTTM(DataSet):
         chunk = chunks[random_chunk]
         fpath_wav = self.pattern_rttm.format(record_id)
         wav,sr = sf.read(fpath_wav,start=int(chunk['start'] * self.sample_rate), frames=int(self.sample_rate * self.frame_per_sample / 1000), fill_value=0)
-        speaker = np.zeros((int(self.frame_per_sample / self.frame_shift), self.max_speaker))
+        if  len(wav.shape) == 2 and wav.shape[1] > 1:
+            wav = np.mean(wav,1)
+        speaker = np.zeros((int(self.frame_per_sample / self.frame_shift), self.max_speaker), dtype=np.int32)
         spk_dict ={}
         for i,ordered_speaker in enumerate(chunk['segment_speaker']):
             speaker_id = ordered_speaker['speaker_id']
@@ -161,11 +165,11 @@ class DiarizationRTTM(DataSet):
                 spk_dict[speaker_id] = len(spk_dict)
             idx_sp = spk_dict[speaker_id]
             if idx_sp >= self.max_speaker:
-                logging.warning(f"record_id {record_id} has chunk with more than {self.max_speaker} overlap")
-                break
+                logging.warning(f"record_id {record_id} has chunk with more than {self.max_speaker}")
+                continue
             start = int(ordered_speaker['start'] * 1000 / self.frame_shift)
             end = int(ordered_speaker['end'] * 1000 / self.frame_shift)
             speaker[start:end,idx_sp] = 1
-        return wav, speaker
+        return (wav), (speaker)
 
 
