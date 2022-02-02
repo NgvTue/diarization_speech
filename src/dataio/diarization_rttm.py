@@ -3,6 +3,8 @@ import numpy as np
 import numpy as np
 import logging
 
+# from sympy import re
+
 # from torch import dtype
 from src.dataio.base import DataSet
 
@@ -72,6 +74,7 @@ class DiarizationRTTM(DataSet):
                         'speaker_id':speaker_id
                     }
                 )
+                record_db[record_id]['max_length'] = max(record_db[record_id].get("max_length",0), start+duration)
                 record_pandas.append({
                     'record_id':record_id,
                     'start':start,
@@ -101,7 +104,8 @@ class DiarizationRTTM(DataSet):
         print("generate chunk per record_id")
         max_speaker_persample=0
         for record_id in tqdm(self.record_db.keys()):
-            total_duration = self.record_db[record_id]['length']
+            total_duration = self.record_db[record_id]['max_length']
+        
             st = 0
             # self.record_db['chunks']=[]
             chunk=[]

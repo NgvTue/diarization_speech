@@ -38,8 +38,7 @@ class TransformerBackbone(tf.keras.Model):
         self.dropout = dropout
 
         self.norm_feature  = tf.keras.layers.LayerNormalization()
-        self.laten_space_feature=tf.keras.layers.Dense(n_units, activation=None, use_bias=True)
-
+        self.laten_space_feature=tf.keras.layers.Dense(n_units, activation=None, use_bias=False)
 
 
         if self.has_position:
@@ -105,7 +104,7 @@ class PositionEncoding(tf.keras.layers.Layer):
         return inputs_shape
 
     def positional_encoding(self, max_length, d_model):
-        angle_rads = self.get_angles(np.arange(max_length)[:, np.newaxis],
+        angle_rads = self.get_angle(np.arange(max_length)[:, np.newaxis],
                                 np.arange(d_model)[np.newaxis, :],
                                 d_model)
 

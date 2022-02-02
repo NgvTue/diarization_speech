@@ -76,10 +76,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         use_projection_bias: bool = True,
         return_attn_coef: bool = False,
         kernel_initializer: typing.Union[str, typing.Callable] = "glorot_uniform",
-        kernel_regularizer: typing.Union[str, typing.Callable] = None,
+        kernel_regularizer: typing.Union[str, typing.Callable] =  tf.keras.regularizers.l2(1e-6),
         kernel_constraint: typing.Union[str, typing.Callable] = None,
         bias_initializer: typing.Union[str, typing.Callable] = "zeros",
-        bias_regularizer: typing.Union[str, typing.Callable] = None,
+        bias_regularizer: typing.Union[str, typing.Callable] =  tf.keras.regularizers.l2(1e-6),
         bias_constraint: typing.Union[str, typing.Callable] = None,
         **kwargs,
     ):
