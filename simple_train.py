@@ -1,11 +1,10 @@
-# from sympy import im
-from random import seed
-from itertools import permutations
-import tensorflow as tf 
+
+import tensorflow as tf
 from src.networks.losses.pit import pit_loss,faster_pit_loss_cross_entropy
 from src.networks.architecture.one_stage import EEND
 from src.networks.audio_processing.features import Fbank
 from src.dataio.diarization_rttm import DiarizationRTTM
+from src.networks.metrics.der import der, pit_per
 import argparse
 
 argparser = argparse.ArgumentParser("Training API")
@@ -18,7 +17,7 @@ def loss_fn(y_true, y_pred):
 
 
 dataset = DiarizationRTTM("/home/tuenguyen/speech/fr_diarization/recipes/AMI/train.rttm","/home/tuenguyen/speech/fr_diarization/recipes/AMI/amicorpus/{}.wav",max_speaker=5,frame_per_sample=1000*15)
-
+print(str(dataset))
 # split train val
 train,val = dataset.split_dataset(ratios=[0.9,0.1],option_kwargs=[{"shuffle":True,"name":"trainingset"},{"shuffle":False,"name":"validationset"}], seed=22)
 
@@ -34,6 +33,6 @@ model = tf.keras.Model(inputs=[inputs], outputs=[eend])
 
 # define pit loss
 loss = pit_loss(loss_fn,k=5)
-
-model.compile(tf.optimizers.Adam(1e-4),loss=loss)
+metric = pit_per(k=5)
+model.compile(tf.optimizers.Adam(1e-4),loss=loss,metrics=[metric])
 model.fit(train, epochs=5, validation_data=val)

@@ -144,7 +144,7 @@ class DiarizationRTTM(DataSet):
             "max speaker overlap":self.max_speaker_overlap,
             "total_chunks":sum([len(self.record_db[i]['chunks']) for i in self.record_db]),
             "mean lenght speaker segment": self.record_pandas['duration'].mean(),
-            "mean length of record": self.record_pandas.groupby("record_id").first()['length'].mean()
+            "total length of records": self.record_pandas.groupby("record_id").first()['length'].sum()
         })
     def __len__(self):return len(self.record_db)
     def __getitem__(self, idx):

@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 import tensorflow as tf 
 import logging
 import copy
+import pickle
 class ShuffleSampler:
     def __call__(self, idxs):
         np.random.shuffle(idxs)
@@ -64,6 +65,13 @@ class DataSet(ABC):
         if self.signature is None:
             raise ValueError(f"signature in {self.name} is not define")
         return tf.data.Dataset.from_generator(self, output_signature = self.signature)
+    def save(self, fpath):
+        with open(fpath, 'wb') as outp:  # Overwrites any existing file.
+            pickle.dump(self, outp, pickle.HIGHEST_PROTOCOL)
+    @staticmethod
+    def from_disk(fpath):
+        with open(fpath, "rb") as f:
+            return pickle.load(fpath) 
 class SplitedDataset(DataSet):
     def __init__(self, parrent_ds:DataSet, index:list, *args, **kwargs):
         self.parrent_ds = copy.deepcopy(parrent_ds)
