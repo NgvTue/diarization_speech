@@ -32,6 +32,7 @@ class DiarizationRTTM(DataSet):
         frame_length : int = 25,
         frame_shift: int = 10,
         shuffle=True, 
+        full_test=False
 
     ):
         signature = (
@@ -49,7 +50,7 @@ class DiarizationRTTM(DataSet):
         self.frame_per_sample = frame_per_sample
         self.path_rttm=path_rttm
         self.pattern_rttm=pattern_rttm
-
+        self.full_test = full_test
         record_db={}
         record_pandas = []
         with open(self.path_rttm,"r") as f:
@@ -100,7 +101,7 @@ class DiarizationRTTM(DataSet):
         if length_assurance.sum() != self.record_pandas.shape[0]:
             print("some segment rttm has length greater than length of record_id")
             print(self.record_pandas[~length_assurance])
-        
+        global_chunks =[]
         print("generate chunk per record_id")
         max_speaker_persample=0
         for record_id in tqdm(self.record_db.keys()):
@@ -115,7 +116,8 @@ class DiarizationRTTM(DataSet):
                 chunk_infor  = {
                     "start":st,
                     'end':end,
-                    'segment_speaker':[]  
+                    'segment_speaker':[] ,
+                    'record_id':record_id
                 }
                 segment_filter = self.record_pandas[(self.record_pandas.record_id == record_id) & (self.record_pandas['start'] <=end) & (self.record_pandas['end'] >= st)]
                 segment_filter = segment_filter.copy()
@@ -131,7 +133,7 @@ class DiarizationRTTM(DataSet):
                         }
                     )
                 chunk.append(chunk_infor)
-
+                global_chunks.append(chunk_infor)
                 st = end 
             
             self.record_db[record_id]['chunks']=chunk
@@ -141,6 +143,7 @@ class DiarizationRTTM(DataSet):
             logging.warning(f"max_speaker = {self.max_speaker}\nDataset has chunks with total_speaker = {max_speaker_persample}")
         self.max_speaker_overlap = max_speaker_persample
         self.idxs = list(self.record_db.keys())
+        self.global_chunks=global_chunks
     def __str__(self) -> str:
         return str({
             "number record id":len(self.record_db),
@@ -150,13 +153,21 @@ class DiarizationRTTM(DataSet):
             "mean lenght speaker segment": self.record_pandas['duration'].mean(),
             "total length of records": self.record_pandas.groupby("record_id").first()['length'].sum()
         })
-    def __len__(self):return len(self.record_db)
+    def __len__(self):
+        if self.full_test:return len(self.global_chunks)
+        return len(self.record_db)
     def __getitem__(self, idx):
-        record_id = self.idxs[idx] 
+        if self.full_test:
+            record_id = self.global_chunks[idx]['record_id']
+        else:
+            record_id = self.idxs[idx] 
         # get random chunks 
-        chunks  = self.record_db[record_id]['chunks']
-        random_chunk = np.random.randint(0,len(chunks))
-        chunk = chunks[random_chunk]
+        if self.full_test:
+            chunk = self.global_chunks[idx]
+        else:
+            chunks  = self.record_db[record_id]['chunks']
+            random_chunk = np.random.randint(0,len(chunks))
+            chunk = chunks[random_chunk]
         fpath_wav = self.pattern_rttm.format(record_id)
         wav,sr = sf.read(fpath_wav,start=int(chunk['start'] * self.sample_rate), frames=int(self.sample_rate * self.frame_per_sample / 1000), fill_value=0)
         if  len(wav.shape) == 2 and wav.shape[1] > 1:
