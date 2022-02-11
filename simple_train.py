@@ -3,7 +3,7 @@
 import tensorflow as tf
 from src.networks.losses.pit import pit_loss,faster_pit_loss_cross_entropy
 from src.networks.architecture.one_stage import EEND,CEEND
-from src.networks.audio_processing.features import Fbank
+from src.networks.audio_processing.features import Fbank, ContextWindow
 from src.dataio.diarization_rttm import DiarizationRTTM
 from src.networks.metrics.der import der, pit_per
 import argparse
@@ -15,9 +15,9 @@ args = argparser.parse_args()
 @tf.function
 def loss_fn(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(y_true,y_pred),-1),-1)
-
 inputs = tf.keras.layers.Input((16000*15))
-feature = Fbank(num_mel_channels=80)(inputs)
+feature = Fbank(num_mel_channels=23)(inputs)
+feature = ContextWindow(left_context = 7, right_context= 7)(feature)
 eend = CEEND(subsampling={"filters":144,"kernel_size":[3,7],"strides":[(2,2),(5,2)]}, max_speaker=5)(feature)
 model = tf.keras.Model(inputs=[inputs], outputs=[eend])
 dataset = DiarizationRTTM("/home/tuenguyen/speech/fr_diarization/recipes/AMI/train.rttm","/home/tuenguyen/speech/fr_diarization/recipes/AMI/amicorpus/{}.wav",

@@ -1,4 +1,5 @@
 import tensorflow as tf 
+import numpy as np 
 from src.networks.audio_processing.functional import db_scale
 
 
@@ -68,3 +69,56 @@ class Fbank(tf.keras.layers.Layer):
             }
         )
         return config
+class ContextWindow(tf.keras.layers.Layer):
+    def __init__(self, left_context: int = 5, right_context: int = 5, ):
+        super().__init__()
+        self.left_context = left_context
+        self.right_context = right_context
+    def get_config(self):
+        cfg= super().get_config()
+        cfg.update(
+            left_context=self.left_context,
+            right_context = self.right_context
+        )
+        return cfg 
+    def call(self, inputs):
+        return tf.gather(inputs, self.kernel,axis=-1)
+    def build(self,input_shape):
+
+        feature = input_shape[-1] 
+        
+        array_select = []
+        # DER=2%
+        for i in range(feature):
+            left = i- self.left_context
+            right = i+self.right_context
+            gather = list(range(left,right+1,1))
+            gather = [max(k,0) for k in gather ]
+            gather = [min(k, feature - 1) for k in gather ]
+            array_select.extend(gather)
+        array_select = np.array(array_select).reshape(-1,)
+        kernel = tf.convert_to_tensor(array_select, dtype=tf.int32)
+        self.kernel = tf.Variable(kernel,trainable=False)
+        super().build(input_shape)
+    def compute_output_shape(self, input_shape):
+        context_window = self.left_context + self.right_context + 1 
+        new_input_shape = [i for i in input_shape]
+        new_input_shape[-1] = new_input_shape[-1] * context_window
+        return new_input_shape
+# context window feature size = 5                                  1,1,1,2,3,4,5,6,7,8,9,9,9
+# 1,2,3,4,5,6,7,8,9, -> padding | 1. 1, 1,2,3,4,5,6,7,8,9,   9,9 |
+# 1,1,1,2,3          -> 1,1, 1,2,3        
+# 1,1,2,3,4          -> dp[i][j] = f[N/size + j]
+# 1,2,3,4,5          -> dp_f[i*size + j] = f[N/size + j]
+# 2,3,4,5,6
+# 3,4,5,6,7
+# 4,5,6,7,8
+# 5,6,7,8,9
+# 6,7,8,9,9
+# 7,8,9,9,9
+
+# -> dp[N,size]: Dp[i][j] = F[(N/size)*i+j]
+
+# bs, time, feature 
+# gather nd 
+# (context_len ,1,feature*context_len)

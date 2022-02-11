@@ -27,9 +27,10 @@ def pit_per(k=4):
          # loss_all = tf.math.minimum(lo,loss_all)
       # return tf.math.reduce_mean(loss_all)
       list_lost_per_st = tf.stack(list_lost_per,-1)
-      return tf.math.reduce_mean(tf.math.reduce_min(list_lost_per_st,axis=-1))
+      return tf.math.reduce_min(list_lost_per_st,axis=-1)
    
    return batch_pit_der
+
 @tf.function
 def der(y_true, y_pred):
     """y_true: bs,len,s
